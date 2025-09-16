@@ -354,6 +354,9 @@ main {
     max-width: 500px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     animation: slideIn 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .modal-header {
