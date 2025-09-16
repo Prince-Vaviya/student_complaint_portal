@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Complaint Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+        import { getStorage } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
+        
+        // Your Firebase configuration
+        window.firebaseConfig = {
+            apiKey: "AIzaSyB5mCeSffy0t08J6aLuok9r6cRfx3HEyIQ",
+            authDomain: "hostel-logger.firebaseapp.com",
+            projectId: "hostel-logger",
+            storageBucket: "hostel-logger.firebasestorage.app",
+            messagingSenderId: "717187465279",
+            appId: "1:717187465279:web:a217e39280d57c0db3388a",
+            measurementId: "G-N961NN9KC4"
+        };
+        
+        // Initialize Firebase
+        window.app = initializeApp(window.firebaseConfig);
+        window.db = getFirestore(window.app);
+        window.storage = getStorage(window.app);
+    </script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Student Complaint Portal</h1>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="testStorageBtn" class="post-btn" style="background: #fbbf24; font-size: 0.8rem; padding: 8px 16px;">🧪 Test Storage</button>
+                <button id="postBtn" class="post-btn">Post Complaint</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="complaintsContainer" class="complaints-container">
+            <div class="no-complaints" id="noComplaints">
+                <p>No complaints posted yet. Click "Post Complaint" to add one.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for posting complaints -->
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Post a Complaint</h2>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <form id="complaintForm">
+                <div class="form-group">
+                    <label for="studentName">Student Name:</label>
+                    <input type="text" id="studentName" name="studentName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="floorNumber">Floor Number:</label>
+                    <input type="number" id="floorNumber" name="floorNumber" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="flatNumber">Flat Number:</label>
+                    <input type="text" id="flatNumber" name="flatNumber" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="issueType">Issue Type:</label>
+                    <select id="issueType" name="issueType" required>
+                        <option value="">Select an issue</option>
+                        <option value="water">Water</option>
+                        <option value="electricity">Electricity</option>
+                        <option value="internet">Internet</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" placeholder="Please describe the issue in detail..." rows="4"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="attachments">Attachments (Images/Audio):</label>
+                    <div class="file-upload-area">
+                        <input type="file" id="attachments" name="attachments" multiple accept="image/*,audio/*" class="file-input">
+                        <div class="file-upload-label" id="fileUploadLabel">
+                            <div class="upload-icon">📎</div>
+                            <div class="upload-text">
+                                <span class="upload-main">Click to upload files</span>
+                                <span class="upload-sub">Images (JPG, PNG, GIF) or Audio files (MP3, WAV, M4A)</span>
+                            </div>
+                        </div>
+                        <div id="filePreview" class="file-preview"></div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="submit-btn">Post Complaint</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

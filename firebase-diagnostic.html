@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Storage Diagnostic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .step { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .step h3 { margin-top: 0; color: #2c3e50; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Firebase Storage Diagnostic Tool</h1>
+        
+        <div id="diagnostics">
+            <p>Checking Firebase configuration...</p>
+        </div>
+
+        <div class="step">
+            <h3>📋 Manual Setup Checklist</h3>
+            <ol>
+                <li><strong>Enable Firebase Storage:</strong>
+                    <ul>
+                        <li>Go to <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a></li>
+                        <li>Select your project: <code>hostel-logger</code></li>
+                        <li>Click on <strong>"Storage"</strong> in the left sidebar</li>
+                        <li>If not enabled, click <strong>"Get started"</strong></li>
+                        <li>Choose <strong>"Start in test mode"</strong></li>
+                    </ul>
+                </li>
+                <li><strong>Set Storage Rules (in Firebase Console → Storage → Rules):</strong>
+                    <p><em>⚠️ Note: This is different from Firestore rules!</em></p>
+                    <pre>rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+                    <p><strong>Steps:</strong></p>
+                    <ol>
+                        <li>Go to Firebase Console → <strong>Storage</strong> (not Firestore Database)</li>
+                        <li>Click on <strong>"Rules"</strong> tab</li>
+                        <li>Replace the default rules with the above</li>
+                        <li>Click <strong>"Publish"</strong></li>
+                    </ol>
+                </li>
+                <li><strong>Verify Storage Bucket:</strong>
+                    <ul>
+                        <li>Should be: <code>hostel-logger.firebasestorage.app</code></li>
+                        <li>Check in Firebase Console → Project Settings → General</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <button onclick="testUpload()">🧪 Test File Upload</button>
+        
+        <div id="testResults"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5mCeSffy0t08J6aLuok9r6cRfx3HEyIQ",
+            authDomain: "hostel-logger.firebaseapp.com",
+            projectId: "hostel-logger",
+            storageBucket: "hostel-logger.firebasestorage.app",
+            messagingSenderId: "717187465279",
+            appId: "1:717187465279:web:a217e39280d57c0db3388a",
+            measurementId: "G-N961NN9KC4"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        function showStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            document.getElementById('diagnostics').appendChild(div);
+        }
+
+        // Run diagnostics
+        setTimeout(() => {
+            document.getElementById('diagnostics').innerHTML = '<h3>🔍 Diagnostic Results:</h3>';
+            
+            showStatus('✅ Firebase App initialized successfully', 'success');
+            showStatus('✅ Firestore Database connected', 'success');
+            
+            if (storage) {
+                showStatus('✅ Firebase Storage initialized', 'success');
+                showStatus(`📍 Storage Bucket: ${storage.app.options.storageBucket}`, 'info');
+            } else {
+                showStatus('❌ Firebase Storage NOT initialized', 'error');
+            }
+
+            console.log('Firebase Storage instance:', storage);
+            console.log('Storage bucket:', storage?.app?.options?.storageBucket);
+        }, 1000);
+
+        // Test upload function
+        window.testUpload = async function() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<h3>🧪 Upload Test Results:</h3>';
+            
+            try {
+                // Create a small test file
+                const testContent = 'This is a test file for Firebase Storage';
+                const testFile = new Blob([testContent], { type: 'text/plain' });
+                
+                resultsDiv.innerHTML += '<div class="status info">Creating test file...</div>';
+                
+                const testRef = ref(storage, `test/${Date.now()}_test.txt`);
+                resultsDiv.innerHTML += '<div class="status info">Uploading to Firebase Storage...</div>';
+                
+                const snapshot = await uploadBytes(testRef, testFile);
+                resultsDiv.innerHTML += '<div class="status success">✅ File uploaded successfully!</div>';
+                
+                const downloadURL = await getDownloadURL(snapshot.ref);
+                resultsDiv.innerHTML += `<div class="status success">✅ Download URL obtained: <br><small>${downloadURL}</small></div>`;
+                
+                resultsDiv.innerHTML += '<div class="status success">🎉 Firebase Storage is working correctly!</div>';
+                
+            } catch (error) {
+                console.error('Upload test failed:', error);
+                resultsDiv.innerHTML += `<div class="status error">❌ Upload test failed: ${error.message}</div>`;
+                resultsDiv.innerHTML += '<div class="status warning">Please check the manual setup steps above.</div>';
+            }
+        };
+    </script>
+</body>
+</html>

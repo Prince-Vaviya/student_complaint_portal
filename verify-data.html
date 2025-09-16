@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Verification Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .complaint-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .attachment-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .attachment-item {
+            max-width: 150px;
+        }
+        .attachment-item img {
+            max-width: 100%;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .audio-item {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Data Verification Tool</h1>
+        <p>This tool shows what's actually stored in your Firebase database and helps verify if uploads worked.</p>
+        
+        <button onclick="loadComplaints()">📊 Load All Complaints</button>
+        <button onclick="checkStorage()">☁️ Check Storage Status</button>
+        <button onclick="showRawData()">🔧 Show Raw Data</button>
+        
+        <div id="status"></div>
+        <div id="complaints"></div>
+        <div id="rawData"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, orderBy, query } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+        import { getStorage, ref, listAll } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5mCeSffy0t08J6aLuok9r6cRfx3HEyIQ",
+            authDomain: "hostel-logger.firebaseapp.com",
+            projectId: "hostel-logger",
+            storageBucket: "hostel-logger.firebasestorage.app",
+            messagingSenderId: "717187465279",
+            appId: "1:717187465279:web:a217e39280d57c0db3388a",
+            measurementId: "G-N961NN9KC4"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        window.loadComplaints = async function() {
+            const statusDiv = document.getElementById('status');
+            const complaintsDiv = document.getElementById('complaints');
+            
+            try {
+                statusDiv.innerHTML = '<div class="status info">Loading complaints from Firestore...</div>';
+                
+                const q = query(collection(db, 'complaints'), orderBy('timestamp', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    complaintsDiv.innerHTML = '<div class="status info">No complaints found in database.</div>';
+                    return;
+                }
+                
+                let complaintsHtml = '<h2>📋 Complaints in Database:</h2>';
+                let totalComplaints = 0;
+                let complaintsWithAttachments = 0;
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    totalComplaints++;
+                    
+                    const hasAttachments = data.attachments && data.attachments.length > 0;
+                    if (hasAttachments) complaintsWithAttachments++;
+                    
+                    complaintsHtml += `
+                        <div class="complaint-item">
+                            <h3>${data.studentName} - ${data.issueType}</h3>
+                            <p><strong>Floor:</strong> ${data.floorNumber} | <strong>Flat:</strong> ${data.flatNumber}</p>
+                            ${data.description ? `<p><strong>Description:</strong> ${data.description}</p>` : ''}
+                            <p><strong>Resolved:</strong> ${data.resolved ? 'Yes' : 'No'}</p>
+                            <p><strong>Posted:</strong> ${data.timestamp?.toDate?.() || data.timestamp}</p>
+                            
+                            ${hasAttachments ? `
+                                <p><strong>Attachments (${data.attachments.length}):</strong></p>
+                                <div class="attachment-preview">
+                                    ${data.attachments.map(att => {
+                                        if (att.type.startsWith('image/')) {
+                                            return `<div class="attachment-item">
+                                                <img src="${att.url}" alt="${att.name}" onclick="window.open('${att.url}', '_blank')">
+                                                <br><small>${att.name}</small>
+                                            </div>`;
+                                        } else {
+                                            return `<div class="audio-item">
+                                                <strong>🎵 ${att.name}</strong><br>
+                                                <audio controls>
+                                                    <source src="${att.url}" type="${att.type}">
+                                                </audio>
+                                            </div>`;
+                                        }
+                                    }).join('')}
+                                </div>
+                            ` : '<p><em>No attachments</em></p>'}
+                        </div>
+                    `;
+                });
+                
+                statusDiv.innerHTML = `<div class="status success">✅ Found ${totalComplaints} complaints (${complaintsWithAttachments} with attachments)</div>`;
+                complaintsDiv.innerHTML = complaintsHtml;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error loading complaints: ${error.message}</div>`;
+                console.error('Error:', error);
+            }
+        };
+
+        window.checkStorage = async function() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                statusDiv.innerHTML = '<div class="status info">Checking Firebase Storage...</div>';
+                
+                const storageRef = ref(storage, 'complaints');
+                const result = await listAll(storageRef);
+                
+                if (result.items.length === 0) {
+                    statusDiv.innerHTML = '<div class="status info">No files found in Storage/complaints folder.</div>';
+                } else {
+                    statusDiv.innerHTML = `<div class="status success">✅ Found ${result.items.length} files in Storage</div>`;
+                    
+                    let filesHtml = '<h3>📁 Files in Storage:</h3><ul>';
+                    result.items.forEach(item => {
+                        filesHtml += `<li>${item.name} (${item.fullPath})</li>`;
+                    });
+                    filesHtml += '</ul>';
+                    
+                    document.getElementById('complaints').innerHTML = filesHtml;
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error checking storage: ${error.message}</div>`;
+                console.error('Storage error:', error);
+            }
+        };
+
+        window.showRawData = async function() {
+            const rawDataDiv = document.getElementById('rawData');
+            
+            try {
+                const q = query(collection(db, 'complaints'), orderBy('timestamp', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                const data = [];
+                querySnapshot.forEach((doc) => {
+                    data.push({
+                        id: doc.id,
+                        ...doc.data(),
+                        timestamp: doc.data().timestamp?.toDate?.() || doc.data().timestamp
+                    });
+                });
+                
+                rawDataDiv.innerHTML = `
+                    <h3>🔧 Raw Database Data:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                rawDataDiv.innerHTML = `<div class="status error">❌ Error loading raw data: ${error.message}</div>`;
+            }
+        };
+
+        // Auto-load on page start
+        setTimeout(() => {
+            loadComplaints();
+        }, 1000);
+    </script>
+</body>
+</html>
